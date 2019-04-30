@@ -3,5 +3,8 @@ data/raw/lineStrokes
 data/raw/original
 data/processed
 
+__pycache__
+img/
+
 logs
 predictions

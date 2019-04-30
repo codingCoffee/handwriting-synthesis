@@ -6,12 +6,18 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import variable_scope as vs
-from tensorflow.python.ops.rnn_cell_impl import _concat, _like_rnncell
+from tensorflow.python.ops.rnn_cell_impl import _concat, assert_like_rnncell
 from tensorflow.python.ops.rnn import _maybe_tensor_shape_from_tensor
 from tensorflow.python.util import nest
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.eager import context
 
+
+def _like_rnncell(cell):
+    """Checks that a given object is an RNNCell by using duck typing."""
+    conditions = [hasattr(cell, "output_size"), hasattr(cell, "state_size"),
+                 hasattr(cell, "zero_state"), callable(cell)]
+    return all(conditions)
 
 def raw_rnn(cell, loop_fn, parallel_iterations=None, swap_memory=False, scope=None):
     """
@@ -26,7 +32,7 @@ def raw_rnn(cell, loop_fn, parallel_iterations=None, swap_memory=False, scope=No
         final cell state,
     )
     """
-    if not _like_rnncell(cell):
+    if assert_like_rnncell("Raw rnn cell", cell):
         raise TypeError("cell must be an instance of RNNCell")
     if not callable(loop_fn):
         raise TypeError("loop_fn must be a callable")
@@ -37,7 +43,8 @@ def raw_rnn(cell, loop_fn, parallel_iterations=None, swap_memory=False, scope=No
     # determined by the parent scope, or is set to place the cached
     # Variable using the same placement as for the rest of the RNN.
     with vs.variable_scope(scope or "rnn") as varscope:
-        if context.in_graph_mode():
+        in_graph_mode = not context.executing_eagerly()
+        if in_graph_mode:
             if varscope.caching_device is None:
                 varscope.set_caching_device(lambda op: op.device)
 
